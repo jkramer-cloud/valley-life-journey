@@ -1,71 +1,54 @@
-# Valley Life Journey
+# Valley Life Journey — Computer Rivals Edition (v1.1)
 
-**An original life-skills board adventure for the Naches Learning Hub**
+An original classroom-friendly life-path board game for the Naches Learning Hub. Students manage money, jobs, learning, housing, wellbeing, and community choices from their first job to retirement.
 
-Choose a starting path, pick a career, spin along a winding valley trail, and make choices about everyday spending, housing, education, work, community, and retirement. The goal is not simply to end with the most money: the game also rewards wellbeing, learning, and helping other people.
+## New in v1.1
 
-This project is **not affiliated with or a reproduction of** any commercial life-board game. Its name, artwork, decisions, and scoring system are original.
+- **Solo play vs. 3 computer opponents by default.** Choose up to 3 AI opponents and up to 4 total players.
+- Mix human players and computer opponents, or play pass-and-play with up to 4 people and no computers.
+- **Five AI personalities:** Careful Casey (saves and avoids debt), Risky Riley (takes financial chances), Balanced Bailey (balances competing goals), Ambitious Alex (develops skills and earnings), and Adventurous Avery (values experiences and wellbeing).
+- Each rival independently selects a starting path and career, spins, handles paydays, makes event decisions, and reaches retirement.
+- **Computer controls:** Normal / Fast / Slow speed, Pause/Resume computers, and **To my turn** to immediately finish pending rival turns. AI turn controls disappear in games with no bots.
+- **At retirement:** compare score rankings plus four breakdown charts for financial security, wellbeing, community impact, and learning.
+- Exported results CSV now distinguishes human and computer players and identifies each bot's decision style.
+- Your existing browser save data and v1 JSON backups remain compatible.
 
 ## Play
 
-Once published with GitHub Pages, visit:
+1. Open the game. Leave the defaults at **1 person + 3 computers** for a competitive solo experience, or choose another combination (maximum four players total).
+2. Enter human names and optionally choose the computer personalities and speed.
+3. For human players, select **Start earning** or **Study or train**, and choose a career. Computer players choose these automatically.
+4. During your turn, click **Spin & move**, then choose between the life scenarios offered.
+5. After the turn, click **Next player**. Computer turns proceed automatically; watch them or skip to your turn.
+6. When everyone reaches space 53, compare retirement outcomes and download the results CSV.
 
-`https://jkramer-cloud.github.io/valley-life-journey/`
+## Files for GitHub Pages
 
-Or download `Valley_Life_Journey_Standalone.html` from the complete package to play offline in a modern browser.
+- `index.html` — interface
+- `styles.css` — styling and responsive layout
+- `game.js` — gameplay, scoring, and computer opponent engine
+- `README.md` — this guide
 
-## Features
+Upload all four files to the root of the `valley-life-journey` repository. Enable Pages: **Settings → Pages → Deploy from a branch → main / (root)**.
 
-- **1–4 players** on a single computer, taking turns. Solo play is fully supported.
-- An illustrated **54-space winding valley board** with an animated six-number spinner.
-- Starting choices for earning now or studying/training; **eight careers** with *fictional*, gameplay-only wages.
-- More than **40 interactive life-event scenarios**, many with multiple choices.
-- Four guaranteed milestones: **housing, relationships/caregiving, career development, and future planning**.
-- Paychecks when passing payday spaces, simulated recurring living costs, financial trade-offs, optional saving, and debt.
-- Track **cash, savings, debt, home equity, financial net worth, wellbeing, community involvement, and skills**.
-- Retirement rankings that consider financial security **and** other types of success.
-- Browser-local autosave, JSON save/restore, and downloadable CSV retirement results.
-- Responsive layout, keyboard-accessible buttons and controls, reduced-motion support, and no third-party tracking.
+The Learning Hub continues to link to `https://jkramer-cloud.github.io/valley-life-journey/`; **no Learning Hub catalog change is needed to publish v1.1**.
 
-## Gameplay and scoring
+## Saving progress
 
-1. Choose how many people will play and enter first names or nicknames.
-2. Each player chooses to begin working or enter a study/training path, then selects a career.
-3. Players alternate spinning 1–6 spaces, paying recurring expenses, receiving wages when crossing payday spaces, and choosing responses to scenarios.
-4. Important milestone spaces trigger even when a spin passes over them.
-5. When every player reaches retirement at space 53, the game compares their paths.
+The game autosaves to `localStorage` in the current browser profile using the existing V1 key `naches-valley-life-journey-v1`. Use **Save backup** to download a JSON save file before replacing versions; use **Import backup** to restore it. Switching devices or browser profiles does not automatically transfer saves. Computer speed and pause settings are also saved.
 
-Life balance score is calculated as:
+## How the computer opponents decide
 
-`max(0, round(net worth / 450)) + (wellbeing × 2) + (community × 9) + (skills × 12)`
+The rivals are *scripted decision-making opponents*, not generative AI, and do not connect to the internet. Their selectable profiles weight cash, savings, debt, income, community, happiness, skills, and financial risk differently, plus a small random variation. Outcomes are purposely simplified; they are not financial predictions or advice.
 
-The purpose is to promote discussion of decision-making, trade-offs, opportunities, wellbeing, and personal values. Career wages, prices, lending, and financial outcomes are intentionally simplified and **are not accurate real-world guidance**. Careers and family structures should not be ranked as morally superior or inferior.
+## Classroom notes
 
-## GitHub Pages setup
+- Ages: aimed broadly at grades 5–12.
+- Finances, salaries, credit/debt, and lifecycle decisions are deliberately fictional and should not be treated as actual financial guidance.
+- No sign-in, advertising, telemetry, or external services.
+- V1.1 is fully playable on desktop and supports narrower screens.
+- The software does not collect or transmit student information. Only names entered into the local game are saved within that browser profile.
 
-1. Create a public GitHub repository named **`valley-life-journey`**.
-2. Upload `index.html`, `styles.css`, `game.js`, and `README.md` from the GitHub-ready package to the repository's root.
-3. In **Settings → Pages**, select **Deploy from a branch**, **main**, and **/(root)**.
-4. Open the published site and test a new one-player game.
+## License / attribution
 
-The game is a fully client-side static website. There is no server, database, Google sign-in requirement, paid asset, or external JavaScript dependency.
-
-## Where progress is saved
-
-Progress is saved in the browser's `localStorage` under `naches-valley-life-journey-v1` and may be cleared if a browser's site data is deleted. **Signing into Google does not synchronize game progress across devices.** Use **Save backup** to download a JSON file, or **Import backup** on the starting screen to restore it in another browser.
-
-Please encourage students to use first names or nicknames rather than entering sensitive information.
-
-## Classroom extensions
-
-Suggested discussions include:
-
-- How do spending decisions affect emergency savings and debt?
-- Why can two people with similar salaries finish with different financial situations?
-- How do education, experience, health, and community involvement influence a life?
-- Why are there multiple reasonable answers to many questions?
-- How do simplified games differ from real-world salaries, access, and opportunity?
-
-## Version
-
-**V1.0** — Original board-game release, October 2026.
+Original educational game developed for Naches Learning Hub. You may add a project license in GitHub when ready.

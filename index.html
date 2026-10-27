@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#143c4a" />
   <meta name="description" content="Valley Life Journey: an original financial-literacy board adventure about education, work, saving, community, and life's choices." />
-  <title>Valley Life Journey · Naches Learning Hub</title>
+  <title>Valley Life Journey · Computer Rivals Edition · Naches Learning Hub</title>
   <link rel="stylesheet" href="styles.css" />
   <script src="game.js" defer></script>
 </head>
@@ -17,7 +17,7 @@
       <div>
         <div class="eyebrow">NACHES LEARNING HUB · LIFE SKILLS ADVENTURE</div>
         <h1>Valley <em>Life Journey</em></h1>
-        <p class="subhead">Build a future. Make choices. See where your story leads.</p>
+        <p class="subhead">Build a future. Outthink your rivals. See where your story leads.</p>
       </div>
     </div>
     <div class="mast-actions">
@@ -37,6 +37,15 @@
         <span class="board-badge" id="phaseBadge">Ready for adventure</span>
       </div>
       <div class="player-strip" id="playerStrip" aria-label="Players"></div>
+      <div id="aiControlPanel" class="ai-control-panel" hidden>
+        <div class="ai-status-head"><span class="ai-dot">●</span><strong>Computer rival controls</strong><span class="ai-tag">AUTO PLAY</span></div>
+        <p id="aiStatusText" class="ai-status-text" aria-live="polite">Computer turns happen automatically.</p>
+        <div class="ai-control-actions">
+          <button type="button" id="aiPauseBtn" class="ai-btn">⏸ Pause computers</button>
+          <label class="ai-speed">Speed <select id="aiSpeedSelect" aria-label="Computer turn speed"><option value="slow">Slow</option><option value="normal">Normal</option><option value="fast">Fast</option></select></label>
+          <button type="button" id="aiSkipBtn" class="ai-btn ai-skip-btn" title="Immediately finish the computer turns">⏭ To my turn</button>
+        </div>
+      </div>
       <div class="board-frame">
         <div class="map-topline"><span>⛰ <strong>VALLEY TRAIL</strong></span><span id="mapProgress">0 / 53 SPACES</span></div>
         <div class="map-scroll" role="region" aria-label="Scrollable journey board" tabindex="0">
@@ -89,7 +98,7 @@
       </div>
     </aside>
   </main>
-  <footer>AN ORIGINAL EDUCATIONAL GAME · GRADES 5–12 · ALL COSTS AND SALARIES ARE SIMULATED · NO SIGN-IN REQUIRED</footer>
+  <footer>VALLEY LIFE JOURNEY V1.1 · COMPUTER RIVALS EDITION · GRADES 5–12 · ALL COSTS AND SALARIES ARE SIMULATED · NO SIGN-IN REQUIRED</footer>
  </div>
 
  <div class="modal-backdrop" id="modal" role="presentation">

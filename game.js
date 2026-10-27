@@ -10,6 +10,16 @@
   const MILESTONES = new Set([11, 22, 33, 44]);
   const COLORS = ['#f38a4f', '#36a8bd', '#a575c3', '#75ae57'];
   const NAMES = ['You', 'Player 2', 'Player 3', 'Player 4'];
+  const AI_PROFILES = [
+    {id:'careful',name:'Careful Casey',icon:'🛡️',short:'Careful',description:'Keeps cash reserves and avoids borrowing.',weights:{cash:1.25,savings:1.25,debt:1.65,equity:.85,happiness:.50,community:.75,skills:.75,pay:1.1},risk:-2.0,path:'earn',career:'electrician'},
+    {id:'risky',name:'Risky Riley',icon:'🎲',short:'Bold',description:'Takes chances for potential wealth and excitement.',weights:{cash:1.25,savings:.42,debt:.38,equity:1.12,happiness:1.25,community:.40,skills:.65,pay:1.4},risk:1.9,path:'train',career:'coder'},
+    {id:'balanced',name:'Balanced Bailey',icon:'⚖️',short:'Balanced',description:'Values money, relationships, and wellbeing.',weights:{cash:1,savings:1,debt:1,equity:1,happiness:1.25,community:1.25,skills:1.05,pay:.9},risk:0,path:'train',career:'nurse'},
+    {id:'ambitious',name:'Ambitious Alex',icon:'🚀',short:'Ambitious',description:'Invests in education, income, and career development.',weights:{cash:1.05,savings:1.0,debt:.9,equity:1,happiness:.55,community:.50,skills:2.0,pay:2.1},risk:.5,path:'train',career:'coder'},
+    {id:'adventure',name:'Adventurous Avery',icon:'🌎',short:'Adventurous',description:'Prioritizes experiences, friendships, and happiness.',weights:{cash:.45,savings:.35,debt:.75,equity:.40,happiness:2.1,community:1.5,skills:.9,pay:.35},risk:1.0,path:'earn',career:'ranger'}
+  ];
+  const getAIProfile = p => AI_PROFILES.find(a=>a.id===p?.botProfile) || AI_PROFILES[2];
+  const isBot = p => !!p?.isBot;
+  const AI_DELAYS = {slow:1700,normal:720,fast:140};
   const MONEY = new Intl.NumberFormat('en-US', { style:'currency', currency:'USD', maximumFractionDigits:0 });
   const $ = id => document.getElementById(id);
   const htmlSafe = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -109,9 +119,15 @@
   let spinTimer = null;
   let toastTimer = null;
   let overlayView = null;
+  let aiTimer = null;
+  let aiSkip = false;
+  let aiHeadline = 'Computer turns happen automatically.';
+  let aiLastSummary = '';
+  const clearAITimer = () => { if(aiTimer !== null){ clearTimeout(aiTimer);aiTimer=null; } };
+  const aiDelay = () => AI_DELAYS[game?.aiSpeed] ?? AI_DELAYS.normal;
 
-  function makePlayer(name, idx) {
-    return {id:`p${idx}`,name:name.trim().slice(0,25)||`Player ${idx+1}`,color:COLORS[idx],position:0,turns:0,
+  function makePlayer(name, idx, botProfile=null) {
+    return {id:`p${idx}`,name:name.trim().slice(0,25)||`Player ${idx+1}`,isBot:!!botProfile,botProfile:botProfile||null,color:COLORS[idx],position:0,turns:0,
       cash:12000,savings:0,debt:0,equity:0,happiness:66,community:0,skills:0,
       pay:0,career:null,path:null,home:'rent',dependents:0,retired:false,used:[],
       journal:[]};
@@ -124,7 +140,7 @@
   function validGame(s){return !!(s && s.version===1 && Array.isArray(s.players) && s.players.length>=1 && s.players.length<=4 &&
     s.players.every(p=>typeof p.name==='string'&&p.name.length<=25&&Number.isFinite(p.cash)&&Number.isFinite(p.position)&&p.position>=0&&p.position<BOARD_LENGTH)&&
     Number.isInteger(s.current)&&s.current>=0&&s.current<s.players.length&&typeof s.phase==='string'&&Array.isArray(s.pending));}
-  function commit(){store();render();}
+  function commit(){store();render();scheduleAI();}
   function log(p,title,description){const e={title,description,turn:p.turns,time:new Date().toISOString()};p.journal.unshift(e);p.journal=p.journal.slice(0,80);}
   function showToast(s){const el=$('toast');el.textContent=s;el.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.classList.remove('show'),3200);}
   function setModal(eyebrow,title,description,body,bottom){
@@ -136,33 +152,81 @@
     $('modal').hidden=false;
     requestAnimationFrame(()=>$('modalCard').focus());
   }
-  function hideModal(){overlayView=null;$('modal').hidden=true;}
+  function hideModal(){overlayView=null;$('modal').hidden=true;scheduleAI();}
 
   function setupView(saved){
+    clearAITimer();
     overlayView='setup';
-    const body=`<div class="setup-form"><label class="field-label">How many players?
-      <select id="playerCount"><option value="1">1 player · Solo adventure</option><option value="2">2 players · Pass & play</option><option value="3">3 players · Pass & play</option><option value="4">4 players · Pass & play</option></select></label>
+    const choices=AI_PROFILES.map((a,i)=>`<option value="${a.id}">${a.icon} ${a.name} · ${a.short}</option>`).join('');
+    const body=`<div class="setup-form">
+      <div class="setup-intro"><strong>Recommended: You versus 3 computer rivals</strong><span>Play solo against personalities who make different life choices. Or invite friends for pass-and-play.</span></div>
+      <div class="setup-columns"><label class="field-label">Human players
+        <select id="playerCount"><option value="1" selected>1 person</option><option value="2">2 people</option><option value="3">3 people</option><option value="4">4 people</option></select></label>
+        <label class="field-label">Computer opponents
+        <select id="botCount"><option value="0">None</option><option value="1">1 computer</option><option value="2">2 computers</option><option value="3" selected>3 computers</option></select></label></div>
       <div class="name-fields">${NAMES.map((n,i)=>`<label class="name-field" data-idx="${i}">${i===0?'Your name':`Player ${i+1}`}<input id="name${i}" maxlength="25" value="${htmlSafe(n)}" autocomplete="off"></label>`).join('')}</div>
-      <div class="notice-box"><strong>How it works:</strong> Each player spins 1–6 spaces and makes decisions. The first path choice and career choice happen before anyone spins. There are 54 spaces including START and RETIRE. One device, turn by turn. Everything saves locally.</div>
+      <div id="opponentSetup" class="opponent-setup"><strong>Meet your rivals</strong><span class="setup-muted">Choose personalities (4 total players maximum).</span><div class="bot-picker-grid">${[0,1,2].map((_,i)=>`<label class="field-label bot-field" data-bot-idx="${i}">Computer ${i+1}<select id="profile${i}">${choices}</select></label>`).join('')}</div></div>
+      <label class="field-label">Computer turn speed
+        <select id="aiSpeedSetup"><option value="normal" selected>Normal · Watch their decisions</option><option value="fast">Fast · Keep the game moving</option><option value="slow">Slow · See every decision</option></select></label>
+      <div class="notice-box"><strong>How it works:</strong> Everyone chooses work or training, a career, and spins 1–6 spaces. Computer rivals make their own decisions. A score comparison appears at retirement. All progress stays in this browser unless you export a backup.</div>
       </div>`;
-    const bottom=`<button class="primary-btn" id="beginBtn" type="button">Start a new journey</button>
+    const bottom=`<button class="primary-btn" id="beginBtn" type="button">Start my journey</button>
       ${saved?'<button class="secondary-btn" id="resumeBtn" type="button">Continue saved journey</button>':''}
       <button class="secondary-btn" id="importBtn" type="button">Import backup</button><input type="file" id="importFile" accept="application/json,.json" hidden>`;
-    setModal('NACHES LEARNING HUB · AN ORIGINAL BOARD ADVENTURE','Your future is yours to shape',
-      'Earn, save, learn, give back, and respond to surprises. The player with the strongest overall life-balance score wins.',body,bottom);
-    const toggle=()=>{const n=+$('playerCount').value;document.querySelectorAll('.name-field').forEach((el,i)=>el.style.display=i<n?'grid':'none');};
-    $('playerCount').addEventListener('change',toggle);toggle();
+    setModal('NACHES LEARNING HUB · COMPUTER RIVALS EDITION','Choose your competition',
+      'Make real decisions about work, money, relationships, and the unexpected. Computer rivals have distinct styles.',body,bottom);
+    const toggle=()=>{
+      const n=+$('playerCount').value;
+      const max=4-n, bSelect=$('botCount');
+      if(+bSelect.value>max)bSelect.value=String(max);
+      [...bSelect.options].forEach(o=>o.disabled=+o.value>max);
+      const b=+$('botCount').value;
+      document.querySelectorAll('.name-field').forEach((el,i)=>el.style.display=i<n?'grid':'none');
+      $('opponentSetup').hidden=b===0;
+      document.querySelectorAll('[data-bot-idx]').forEach((el,i)=>el.hidden=i>=b);
+      $('beginBtn').textContent=b?'Start vs computers':'Start local journey';
+    };
+    $('playerCount').addEventListener('change',toggle);
+    $('botCount').addEventListener('change',toggle);
+    ['careful','balanced','risky'].forEach((profile,i)=>{ $('profile'+i).value=profile; });
+    toggle();
     $('beginBtn').onclick=()=>{
       if(saved&&!confirm('Start a fresh journey? The current saved game will be replaced. Export a backup first if you want to keep it.'))return;
-      const n=+$('playerCount').value;
-      game={version:1,phase:'path',current:0,players:Array.from({length:n},(_,i)=>makePlayer($(`name${i}`).value,i)),pending:[],lastSpin:null,started:new Date().toISOString()};
+      clearAITimer();
+      const n=+$('playerCount').value,b=+$('botCount').value;
+      const players=Array.from({length:n},(_,i)=>makePlayer($(`name${i}`).value,i));
+      const taken=new Set(players.map(p=>p.name.toLowerCase()));
+      for(let i=0;i<b;i++){
+        const profile=getAIProfile({botProfile:$('profile'+i).value});
+        let name=profile.name;
+        if(taken.has(name.toLowerCase()))name+=` ${i+1}`;
+        taken.add(name.toLowerCase());
+        players.push(makePlayer(name,n+i,profile.id));
+      }
+      game={version:1,phase:'path',current:0,players,pending:[],lastSpin:null,started:new Date().toISOString(),aiPaused:false,aiSpeed:$('aiSpeedSetup').value};
+      aiLastSummary='New journey started. Computer rivals are ready.';
       commit();pathView();
     };
-    if(saved)$('resumeBtn').onclick=()=>{game=saved;if(game.phase==='moving')game.phase='ready';hideModal();commit();if(game.phase==='path')pathView();if(game.phase==='career')careerView();if(game.phase==='final')resultView();};
+    if(saved)$('resumeBtn').onclick=()=>{
+      clearAITimer();game=saved;
+      if(game.phase==='moving')game.phase='ready';
+      game.aiSpeed=game.aiSpeed||'normal';
+      hideModal();commit();
+      if(game.phase==='path')pathView();if(game.phase==='career')careerView();if(game.phase==='final')resultView();
+    };
     $('importBtn').onclick=()=>$('importFile').click();
-    $('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const s=JSON.parse(await f.text());if(!validGame(s))throw Error('Not a valid Valley Life Journey backup');if(!confirm('Load this backup? It replaces your current saved journey on this browser.'))return;game=s;if(game.phase==='moving')game.phase='ready';commit();hideModal();if(game.phase==='path')pathView();if(game.phase==='career')careerView();if(game.phase==='final')resultView();showToast('Journey restored.');}catch(err){alert(`Could not import: ${err.message}`);}};
+    $('importFile').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{
+      const s=JSON.parse(await f.text());
+      if(!validGame(s))throw Error('Not a valid Valley Life Journey backup');
+      if(!confirm('Load this backup? It replaces your current saved journey on this browser.'))return;
+      clearAITimer();game=s;if(game.phase==='moving')game.phase='ready';game.aiSpeed=game.aiSpeed||'normal';
+      hideModal();commit();
+      if(game.phase==='path')pathView();if(game.phase==='career')careerView();if(game.phase==='final')resultView();
+      showToast('Journey restored.');
+    }catch(err){alert(`Could not import: ${err.message}`);}};
   }
   function pathView(){
+    if(isBot(current())){hideModal();commit();return;}
     overlayView='path';
     const p=current();
     const body=`<div class="option-grid"><button class="option-card" data-path="earn"><span class="option-icon">🧰</span><span class="option-name">Start earning</span><span class="option-description">Begin work and learn on the job. Receive $1,800 right away and gain a practical skill.</span><span class="option-detail">+ $1,800 · +1 skill</span></button>
@@ -177,6 +241,7 @@
     });
   }
   function careerView(){
+    if(isBot(current())){hideModal();commit();return;}
     overlayView='career';
     const p=current();
     const body=`<div class="option-grid">${JOBS.map(j=>`<button class="option-card" data-job="${j.id}"><span class="option-icon">${j.icon}</span><span class="option-name">${htmlSafe(j.name)}</span><span class="option-description">${htmlSafe(j.detail)}</span><span class="option-detail">Simulated payday: ${money(Math.round(j.pay*(p.path==='train'?1.12:1)))}</span></button>`).join('')}</div>`;
@@ -254,16 +319,17 @@
     const s=pool[rand(pool.length)];p.used.push(s.id);if(p.used.length>SCENARIOS.length)p.used=p.used.slice(-12);
     return JSON.parse(JSON.stringify(s));
   }
-  function spin(){
-    if(!game||game.phase!=='ready'||!current()||current().retired)return;
+  function spin(automatic=false){
+    if(!game||game.phase!=='ready'||!current()||current().retired||(isBot(current())&&!automatic))return;
     const spinValue=rand(6)+1;
     game.phase='moving';game.lastSpin=spinValue;
     spinAngle+=4*360+((6-spinValue)*60)+(spinAngle%60===0?0:0);
+    $('wheelDisc').style.setProperty('--spin-duration',isBot(current())?Math.min(aiDelay(),720)+'ms':'900ms');
     $('wheelDisc').style.transform=`rotate(${spinAngle}deg)`;
     $('wheelHub').textContent='…';
     commit();
     clearTimeout(spinTimer);
-    spinTimer=setTimeout(()=>{spinTimer=null;move(spinValue);},900);
+    spinTimer=setTimeout(()=>{spinTimer=null;move(spinValue);},isBot(current())?Math.min(aiDelay(),720):900);
   }
   function move(value){
     if(!game||game.phase!=='moving')return;
@@ -310,6 +376,76 @@
     }
     game.current=idx;game.phase='ready';commit();
   }
+  function aiChoice(p,event){
+    const profile=getAIProfile(p),w=profile.weights;
+    const remainingPaydays=[...PAYDAYS].filter(i=>i>p.position).length;
+    const v=event.options.map((o,i)=>{
+      const c=o.changes||{};
+      const moneyValue=(c.cash||0)/450*w.cash+(c.savings||0)/450*w.savings-(c.debt||0)/450*w.debt+(c.equity||0)/450*w.equity;
+      const meaningful=moneyValue+(c.happiness||0)*2*w.happiness+(c.community||0)*9*w.community+(c.skills||0)*12*w.skills
+        +(c.pay||0)*remainingPaydays/450*w.pay;
+      const liquidity=c.cash<0&&p.cash+c.cash<1500&&p.savings<1500 ? (profile.id==='risky'?8:22):0;
+      const excitement=profile.risk*Math.min(12,Math.max(0,-(c.cash||0)/220))+(profile.id==='adventure'?(c.happiness||0)*2:0);
+      const saveBonus=profile.id==='careful'?(c.savings||0)/300:0;
+      return {i,value:meaningful-liquidity+excitement+saveBonus+Math.random()*3};
+    });
+    return v.sort((a,b)=>b.value-a.value)[0]?.i??0;
+  }
+  function aiStep(instant=false){
+    if(!game||!isBot(current())||game.aiPaused||['final'].includes(game.phase))return;
+    if(!instant&&(overlayView==='setup'||overlayView==='rules'||overlayView==='results'))return;
+    const p=current(),profile=getAIProfile(p);
+    if(game.phase==='path'){
+      const path=profile.path;
+      p.path=path;
+      if(path==='earn'){applyChange(p,{cash:1800,skills:1});log(p,'Starting path','Began earning and gaining experience.');}
+      else{applyChange(p,{debt:9000,skills:3});log(p,'Starting path','Started a study or training program.');}
+      aiLastSummary=`${p.name} chose to ${path==='train'?'study or train':'start earning'}.`;
+      game.phase='career';commit();return;
+    }
+    if(game.phase==='career'){
+      const job=JOBS.find(j=>j.id===profile.career)||JOBS[0];
+      p.career=job.id;p.pay=Math.round(job.pay*(p.path==='train'?1.12:1));
+      log(p,'Career selected',`${job.name} · simulated payday ${money(p.pay)}.`);
+      aiLastSummary=`${p.name} chose the ${job.name} career.`;
+      if(game.current+1<game.players.length){game.current++;game.phase='path';commit();pathView();}
+      else{game.current=0;game.phase='ready';commit();hideModal();showToast('All players are ready to start!');}
+      return;
+    }
+    if(game.phase==='ready'){
+      aiLastSummary=`${p.name} is spinning the wheel…`;
+      if(instant){game.phase='moving';const value=rand(6)+1;game.lastSpin=value;move(value);}
+      else spin(true);
+      return;
+    }
+    if(game.phase==='decision'){
+      if(!game.pending.length){finishTurn();return;}
+      const e=game.pending[0],choice=aiChoice(p,e);
+      aiLastSummary=`${p.name}: ${e.options[choice].title}`;
+      chooseOption(choice);return;
+    }
+    if(game.phase==='handoff'){
+      nextTurn();return;
+    }
+  }
+  function scheduleAI(){
+    clearAITimer();
+    if(aiSkip||!game||game.aiPaused||!isBot(current())||game.phase==='final'||game.phase==='moving')return;
+    if(['setup','rules','results'].includes(overlayView))return;
+    aiTimer=setTimeout(()=>{aiTimer=null;aiStep();},aiDelay());
+  }
+  function fastForwardAI(){
+    if(!game||game.aiPaused||!isBot(current()))return;
+    clearAITimer();if(spinTimer!==null){clearTimeout(spinTimer);spinTimer=null;}
+    if(game.phase==='moving')game.phase='ready';
+    aiSkip=true;
+    let counter=0;
+    while(game&&isBot(current())&&game.phase!=='final'&&counter++<800)aiStep(true);
+    aiSkip=false;
+    commit();
+    if(game.phase==='final'&&overlayView!=='results')resultView();
+    if(counter>=800)showToast('Fast-forward stopped at the safety limit.');
+  }
   function effectBadges(e){
     return Object.entries(e||{}).filter(([k,v])=>v!==0&&k!=='home').map(([k,v])=>{
       const desc=({cash:'cash',savings:'saved',debt:'debt',equity:'home value',happiness:'wellbeing',community:'community',skills:'skills',pay:'payday',dependents:'responsibility'}[k]||k);
@@ -323,33 +459,41 @@
     const p=current();
     const playable=!!game;
     $('exportBtn').disabled=!playable;
-    $('spinBtn').disabled=!playable||game.phase!=='ready';
+    $('spinBtn').disabled=!playable||game.phase!=='ready'||isBot(current());
     $('spinBtn').textContent=game?.phase==='moving'?'Spinning…':'Spin & move';
-    $('playerStrip').innerHTML=playable?game.players.map((q,i)=>`<div class="player-tile ${game.current===i?'active':''} ${q.retired?'retired':''}" title="${htmlSafe(q.name)}"><div class="pawn-swatch" style="--pawn:${q.color}"></div><div class="player-details"><div class="player-name">${htmlSafe(q.name)} ${q.retired?'✓':''}</div><div class="player-sub">Space ${q.position}/53 · ${money(q.cash)}</div></div></div>`).join(''):'<div class="player-tile"><div class="player-details"><div class="player-name">Start a new journey</div><div class="player-sub">1–4 players</div></div></div>';
+    $('playerStrip').innerHTML=playable?game.players.map((q,i)=>`<div class="player-tile ${game.current===i?'active':''} ${q.retired?'retired':''}" title="${htmlSafe(q.name)}"><div class="pawn-swatch" style="--pawn:${q.color}"></div><div class="player-details"><div class="player-name">${isBot(q)?'🤖 ':''}${htmlSafe(q.name)} ${q.retired?'✓':''}</div><div class="player-sub">Space ${q.position}/53 · ${money(q.cash)}</div></div></div>`).join(''):'<div class="player-tile"><div class="player-details"><div class="player-name">Start a new journey</div><div class="player-sub">1–4 players</div></div></div>';
+    const botCount=playable?game.players.filter(isBot).length:0;
+    $('aiControlPanel').hidden=!botCount;
+    $('aiPauseBtn').textContent=game?.aiPaused?'▶ Resume computers':'⏸ Pause computers';
+    $('aiSpeedSelect').value=game?.aiSpeed||'normal';
+    $('aiSkipBtn').disabled=!playable||!isBot(p)||game.aiPaused||game.phase==='moving';
+    $('aiStatusText').textContent=!playable?'':game.aiPaused?'Computer opponents paused.':isBot(p)?`${htmlSafe(p.name)} (${getAIProfile(p).short}) · ${aiLastSummary}`:`Your turn. ${botCount} computer rival${botCount===1?'':'s'} ready.`;
+    $('aiStatusText').setAttribute('aria-live','polite');
     $('phaseBadge').textContent=!playable?'Ready for adventure':game.phase==='final'?'Journey complete':`${game.players.filter(q=>q.retired).length} retired · ${game.players.length} total`;
     $('mapProgress').textContent=p?`SPACE ${p.position} / 53`:'0 / 53 SPACES';
-    $('turnChip').textContent=!playable?'SETUP':game.phase==='ready'?'READY':game.phase==='decision'?'CHOOSE':game.phase==='handoff'?'NEXT PLAYER':game.phase==='moving'?'MOVING':game.phase==='final'?'COMPLETE':'SETUP';
+    $('turnChip').textContent=!playable?'SETUP':isBot(p)?'CPU TURN':game.phase==='ready'?'READY':game.phase==='decision'?'CHOOSE':game.phase==='handoff'?'NEXT PLAYER':game.phase==='moving'?'MOVING':game.phase==='final'?'COMPLETE':'SETUP';
     $('turnLabel').textContent=p?`${htmlSafe(p.name).toUpperCase()} · CHAPTER ${p.turns+1}`:'YOUR NEXT CHAPTER';
     $('decisionArea').innerHTML='';
     $('handoffArea').hidden=true;
     const wheelShown=playable&&['ready','moving'].includes(game.phase);
     $('wheelArea').style.display=wheelShown?'flex':'none';
+    $('wheelArea').classList.toggle('ai-working',!!(wheelShown&&isBot(p)));
     if(!playable){$('actionTitle').textContent='Your story begins here';$('actionDescription').textContent='Choose players to begin. Each choice changes your future.';}
     else if(wheelShown){$('actionTitle').textContent=game.phase==='moving'?'Moving along the trail…':p.name==='You'?'Your turn!':`It's ${p.name}'s turn!`;
-      $('actionDescription').textContent='Spin 1–6 spaces, handle expenses and paydays, then decide what to do with the opportunities ahead.';
-      $('wheelHint').textContent=game.phase==='moving'?'Finding your next chapter…':`Simulated living cost this turn: ${money(livingCost(p))}.`;}
+      $('actionDescription').textContent=isBot(p)?`${getAIProfile(p).icon} ${getAIProfile(p).description} Their turns are automatic.`:'Spin 1–6 spaces, handle expenses and paydays, then decide what to do with the opportunities ahead.';
+      $('wheelHint').textContent=isBot(p)?(game.aiPaused?'Computer paused.':'Computer opponent is thinking…'):game.phase==='moving'?'Finding your next chapter…':`Simulated living cost this turn: ${money(livingCost(p))}.`;}
     else if(game.phase==='decision'){
       const e=game.pending[0];
       $('actionTitle').textContent=e?.title||'Make a decision';$('actionDescription').textContent='Every choice has trade-offs. What works for your goals?';
       $('decisionArea').innerHTML=`<div class="decision-label">${KIND_NAMES[e.kind]||'Life decision'} · Space ${p.position}</div><p class="decision-description">${htmlSafe(e.text)}</p>${e.options.map((o,i)=>`<button type="button" class="choice-card" data-option="${i}"><span class="choice-title">${htmlSafe(o.title)}</span><span class="choice-sub">${htmlSafe(o.desc)}</span><span class="effect-tags">${effectBadges(o.changes)}</span></button>`).join('')}`;
-      document.querySelectorAll('[data-option]').forEach(b=>b.onclick=()=>chooseOption(+b.dataset.option));
+      document.querySelectorAll('[data-option]').forEach(b=>{b.disabled=isBot(p);b.onclick=()=>{if(!isBot(current()))chooseOption(+b.dataset.option);};});
     }else if(game.phase==='handoff'){
       $('actionTitle').textContent=p.retired?'Journey complete!':'Chapter complete!';
       $('actionDescription').textContent=p.retired?`${p.name} has reached retirement. Other players can finish their journeys.`:'Your decisions are saved. Pass the device to the next player when ready.';
-      const next=game.players.find((q,i)=>i!==game.current&&!q.retired)||p;
+      const next=[...game.players.slice(game.current+1),...game.players.slice(0,game.current)].find(q=>!q.retired)||p;
       $('handoffArea').hidden=false;
-      $('handoffArea').innerHTML=`<p>${game.players.length>1?`Next up: <strong>${htmlSafe(next.name)}</strong>`:'Ready for another spin?'}</p><button type="button" class="primary-btn" id="nextTurnBtn">${game.players.length>1?'Next player':'Continue journey'}</button>`;
-      $('nextTurnBtn').onclick=nextTurn;
+      $('handoffArea').innerHTML=`<p>${game.players.length>1?`Next up: <strong>${htmlSafe(next.name)}</strong>`:'Ready for another spin?'}</p><button type="button" class="primary-btn" id="nextTurnBtn" ${isBot(p)?'disabled':''}>${isBot(p)?'Computer is continuing…':game.players.length>1?'Next player':'Continue journey'}</button>`;
+      $('nextTurnBtn').onclick=()=>{if(!isBot(current()))nextTurn();};
     }else if(game.phase==='final'){
       $('actionTitle').textContent='Every journey has a story';
       $('actionDescription').textContent='Everyone reached retirement. Compare outcomes and see how the choices added up.';
@@ -376,41 +520,52 @@
     if(!game||game.phase!=='final')return;
     overlayView='results';
     const ranking=[...game.players].sort((a,b)=>score(b)-score(a));const maxScore=Math.max(1,...ranking.map(score));
-    const rows=ranking.map((p,i)=>`<div class="result-card ${i===0?'winner':''}"><div class="row"><strong>${i===0?'🏆 ':''}${i+1}. ${htmlSafe(p.name)}</strong><strong>${score(p)} pts</strong></div><div class="result-metrics"><span>Net worth: ${money(netWorth(p))}</span><span>Wellbeing: ${p.happiness}/100</span><span>Community: ${p.community}</span><span>Skills: ${p.skills}</span></div><div class="result-bar"><div style="width:${score(p)/maxScore*100}%;background:${p.color}"></div></div></div>`).join('');
+    const rows=ranking.map((p,i)=>`<div class="result-card ${i===0?'winner':''}"><div class="row"><strong>${i===0?'🏆 ':''}${i+1}. ${isBot(p)?'🤖 ':''}${htmlSafe(p.name)}</strong><strong>${score(p)} pts</strong></div><div class="result-metrics"><span>Net worth: ${money(netWorth(p))}</span><span>Wellbeing: ${p.happiness}/100</span><span>Community: ${p.community}</span><span>Skills: ${p.skills}</span></div><div class="result-bar"><div style="width:${score(p)/maxScore*100}%;background:${p.color}"></div></div></div>`).join('');
+    const comparisons=['Financial security','Wellbeing','Community','Learning'].map((metric,i)=>{
+      const v=p=>[Math.max(0,Math.round(netWorth(p)/450)),p.happiness*2,p.community*9,p.skills*12][i];
+      const max=Math.max(1,...ranking.map(v));
+      return `<div class="comparison-row"><strong>${metric}</strong><div class="comparison-bars">${ranking.map(p=>`<div class="comparison-entry"><span>${htmlSafe(p.name)}</span><div class="comparison-track"><i style="background:${p.color};width:${Math.round(v(p)/max*100)}%"></i></div><b>${v(p)}</b></div>`).join('')}</div></div>`;
+    }).join('');
     setModal('RETIREMENT · THE STORY YOU BUILT','Your journey, your choices',
       'There is no single correct way to live. The game rewards financial security, wellbeing, learning, and community—not just cash.',
-      rows+`<div class="notice-box"><strong>Life-balance score:</strong> Net worth / 450 (minimum 0) + wellbeing × 2 + community × 9 + skills × 12. All figures and rules are fictional for classroom learning.</div>`,
+      rows+`<h3 class="comparison-heading">How everyone's choices compared</h3>${comparisons}<div class="notice-box"><strong>Life-balance score:</strong> Net worth / 450 (minimum 0) + wellbeing × 2 + community × 9 + skills × 12. All figures and rules are fictional for classroom learning.</div>`,
       '<button class="primary-btn" id="resultExport" type="button">Download results CSV</button><button class="secondary-btn" id="resultClose" type="button">View board</button><button class="secondary-btn" id="againBtn" type="button">Play again</button>');
     $('resultExport').onclick=exportResults;
     $('resultClose').onclick=hideModal;
     $('againBtn').onclick=()=>setupView(game);
   }
   function exportBackup(){if(!game)return;download('valley-life-journey-backup.json',JSON.stringify(game,null,2),'application/json');}
-  function exportResults(){if(!game)return;const cols=['Name','Career','Starting path','Cash','Savings','Debt','Home equity','Net worth','Wellbeing','Community','Skills','Turns','Life balance score'];
-    const data=game.players.map(p=>[p.name,JOBS.find(j=>j.id===p.career)?.name||'',p.path,p.cash,p.savings,p.debt,p.equity,netWorth(p),p.happiness,p.community,p.skills,p.turns,score(p)]);
+  function exportResults(){if(!game)return;const cols=['Name','Player type','Decision style','Career','Starting path','Cash','Savings','Debt','Home equity','Net worth','Wellbeing','Community','Skills','Turns','Life balance score'];
+    const data=game.players.map(p=>[p.name,isBot(p)?'Computer':'Human',isBot(p)?getAIProfile(p).name:'',JOBS.find(j=>j.id===p.career)?.name||'',p.path,p.cash,p.savings,p.debt,p.equity,netWorth(p),p.happiness,p.community,p.skills,p.turns,score(p)]);
     const csv=[cols,...data].map(row=>row.map(v=>`"${String(v??'').replace(/"/g,'""')}"`).join(',')).join('\r\n');download('valley-life-journey-results.csv',csv,'text/csv;charset=utf-8');}
   function download(name,contents,mime){const b=new Blob([contents],{type:mime}),url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);}
   function rulesView(){
     overlayView='rules';
     setModal('THE RULEBOOK · NO REAL MONEY INVOLVED','How to play Valley Life Journey',
-      'An original educational board game for 1–4 local players.',
-      `<div class="rules-list"><p><strong>1. Choose your starting path and career.</strong> Training adds learning and debt; beginning work adds cash. Careers offer fictional paydays.</p>
-      <p><strong>2. Spin the wheel.</strong> Move 1–6 spaces. Each spin includes everyday living costs, and crossing a payday space pays your simulated salary.</p>
-      <p><strong>3. Make choices.</strong> When you reach opportunity, money, community, wellness, or surprise spaces, choose how to respond. Major milestones happen to every player who passes them.</p>
-      <p><strong>4. Manage trade-offs.</strong> Cash can become debt if you spend beyond your balance. Savings are separate from spending cash; buying a home adds equity and a mortgage.</p>
-      <p><strong>5. Reach retirement.</strong> Everyone finishes at space 53. Scores combine net worth, wellbeing, community contribution, and skills. The strongest balance wins.</p>
-      <p><strong>6. Save your progress.</strong> The game saves in this browser profile. Use Save backup to move to another device or protect your progress.</p>
+      'An original educational board game for 1–4 players, including up to three computer rivals.',
+      `<div class="rules-list"><p><strong>1. Choose your rivals.</strong> Solo play defaults to you and three computer players with different decision styles. You can also play with humans on one device, or mix humans and computers.</p>
+      <p><strong>2. Choose your starting path and career.</strong> Training adds learning and debt; beginning work adds cash. Careers offer fictional paydays.</p>
+      <p><strong>3. Spin the wheel.</strong> Move 1–6 spaces. Each spin includes everyday living costs, and crossing a payday space pays your simulated salary.</p>
+      <p><strong>4. Make choices.</strong> When you reach opportunity, money, community, wellness, or surprise spaces, choose how to respond. Major milestones happen to every player who passes them.</p>
+      <p><strong>5. Manage trade-offs.</strong> Cash can become debt if you spend beyond your balance. Savings are separate from spending cash; buying a home adds equity and a mortgage.</p>
+      <p><strong>6. Reach retirement.</strong> Everyone finishes at space 53. Scores combine net worth, wellbeing, community contribution, and skills. The strongest balance wins.</p>
+      <p><strong>7. Control computer speed.</strong> Use Fast, Normal, or Slow. Pause computer turns or fast-forward to the next human turn at any time.</p>
+      <p><strong>8. Save your progress.</strong> The game saves in this browser profile. Use Save backup to move to another device or protect your progress.</p>
       <div class="notice-box">Game concepts are simplified and fictional. Outcomes do not represent real salaries, lending rules, cost of living, or personal-finance advice. Different family and work paths are equally valid choices.</div></div>`,
       '<button type="button" class="primary-btn" id="rulesClose">Got it!</button>');
-    $('rulesClose').onclick=()=>{hideModal();if(!game)setupView(null);else if(game.phase==='path')pathView();else if(game.phase==='career')careerView();else if(game.phase==='final')resultView();};
+    $('rulesClose').onclick=()=>{hideModal();if(!game)setupView(null);else if(game.phase==='path')pathView();else if(game.phase==='career')careerView();else if(game.phase==='final')resultView();else scheduleAI();};
   }
   function init(){
-    $('spinBtn').onclick=spin;
+    $('spinBtn').onclick=()=>spin(false);
+    $('aiPauseBtn').onclick=()=>{if(!game)return;game.aiPaused=!game.aiPaused;aiLastSummary=game.aiPaused?'Computers are paused.':'Computers resumed.';commit();};
+    $('aiSpeedSelect').onchange=e=>{if(!game)return;game.aiSpeed=e.target.value;commit();};
+    $('aiSkipBtn').onclick=fastForwardAI;
     $('newGameBtn').onclick=()=>setupView(game);
     $('exportBtn').onclick=exportBackup;
     $('rulesBtn').onclick=rulesView;
     game=readStore();
     if(game?.phase==='moving')game.phase='ready';
+    if(game)game.aiSpeed=game.aiSpeed||'normal';
     render();
     setupView(game);
   }
