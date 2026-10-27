@@ -38,3 +38,14 @@
 .wheel:after {inset:5px; border:2px solid #ffffff77;pointer-events:none}
 .milestone-teaser{padding:10px 15px;text-align:center;font-size:11px;font-weight:900;letter-spacing:.07em;background:linear-gradient(90deg,#e5f3d9,#fff5cf,#e5f3d9);color:#316d71;border-top:1px solid #d8e4d8}
 @media(prefers-reduced-motion:no-preference){.current-pawn circle{animation:lifePawnGlow 1.6s ease-in-out infinite;transform-box:fill-box;transform-origin:center}@keyframes lifePawnGlow{50%{stroke-width:6;filter:drop-shadow(0 0 5px #f9d676)}}}
+
+/* V2: expanded illustrated local valley routes */
+.board-frame{background:#fffaf0;border:2px solid #bed5c7}.map-scroll{overflow:auto;scrollbar-color:#80ab9c #f0f2e7;max-height:min(76vh,760px);min-height:390px;overscroll-behavior:contain}
+#boardSvg{width:100%;height:auto;min-width:760px;display:block;filter:saturate(1.12)}
+.scene-art text{font-family:Trebuchet MS,Arial,sans-serif;font-size:13px;font-weight:1000;letter-spacing:.12em;fill:#4a7c75;paint-order:stroke;stroke:#fff6d8;stroke-width:2px}
+.setup-columns{align-items:end}.setup-intro{border-left:5px solid #d9a255}
+.choice-card{transition:transform .12s, box-shadow .12s}.choice-card:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 22px #1b575022}
+.current-pawn{filter:drop-shadow(0 0 8px #ffe66a)}
+@media(max-width:720px){.map-scroll{max-height:390px;min-height:350px}#boardSvg{min-width:780px}.board-pane{overflow:hidden}}
+
+.garage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}.garage-grid .option-card{text-align:center;align-items:center;min-height:130px}.garage-grid .option-card:disabled{opacity:.4}.garage-grid .selected-vehicle{background:#dcf6e7;border-color:#319b84}.invest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.invest-grid .option-card{align-items:center}.invest-grid .option-icon{font-size:32px;font-weight:900}.floating-cloud{animation:cloudFloat 12s ease-in-out infinite alternate;transform-box:fill-box;transform-origin:center}@keyframes cloudFloat{from{transform:translateX(-10px)}to{transform:translateX(15px)}}@media(max-width:600px){.garage-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(prefers-reduced-motion:reduce){.floating-cloud{animation:none}}
