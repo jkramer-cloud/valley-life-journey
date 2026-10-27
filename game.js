@@ -290,7 +290,7 @@
     });
     const markers=game?game.players.map((p,i)=>{
       const pt=POINTS[p.position];const shifts=[[-12,-27],[13,-28],[-12,28],[13,28]][i];const x=pt.x+shifts[0],y=pt.y+shifts[1];
-      return `<g transform="translate(${x} ${y})"><circle r="12" fill="${p.color}" stroke="#f9fff6" stroke-width="3" filter="url(#shadow)"/><text text-anchor="middle" y="4" font-size="10" fill="#173844" font-weight="1000">${i+1}</text><title>${htmlSafe(p.name)} at space ${p.position}</title></g>`;
+      return `<g class="${game.current===i&&!p.retired?'current-pawn':''}" transform="translate(${x} ${y})"><circle r="12" fill="${p.color}" stroke="#f9fff6" stroke-width="3" filter="url(#shadow)"/><text text-anchor="middle" y="4" font-size="10" fill="#173844" font-weight="1000">${i+1}</text><title>${htmlSafe(p.name)} at space ${p.position}</title></g>`;
     }).join(''):'';
     $('boardSvg').innerHTML=sceneSvg()+`<path d="${road}" stroke="#9fbea6" stroke-width="40" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity=".33"/><path d="${road}" stroke="#fff9d8" stroke-width="34" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${road}" stroke="#d0a877" stroke-width="24" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="${road}" stroke="#fee4b3" stroke-width="2.8" stroke-dasharray="6 13" fill="none" stroke-linecap="round"/>${tiles}${markers}`;
   }
@@ -323,7 +323,13 @@
     if(!game||game.phase!=='ready'||!current()||current().retired||(isBot(current())&&!automatic))return;
     const spinValue=rand(6)+1;
     game.phase='moving';game.lastSpin=spinValue;
-    spinAngle+=4*360+((6-spinValue)*60)+(spinAngle%60===0?0:0);
+    // Each numbered wedge is 60 degrees, centered on 0, 60, 120... .
+    // Rotate from the current orientation to the chosen number under the top pointer.
+    // Using absolute targets avoids the cumulative drift that V1.1 had after several spins.
+    const previous=((spinAngle%360)+360)%360;
+    const target=(360-(spinValue-1)*60)%360;
+    const offset=(target-previous+360)%360;
+    spinAngle+=4*360+offset;
     $('wheelDisc').style.setProperty('--spin-duration',isBot(current())?Math.min(aiDelay(),720)+'ms':'900ms');
     $('wheelDisc').style.transform=`rotate(${spinAngle}deg)`;
     $('wheelHub').textContent='…';
@@ -471,6 +477,11 @@
     $('aiStatusText').setAttribute('aria-live','polite');
     $('phaseBadge').textContent=!playable?'Ready for adventure':game.phase==='final'?'Journey complete':`${game.players.filter(q=>q.retired).length} retired · ${game.players.length} total`;
     $('mapProgress').textContent=p?`SPACE ${p.position} / 53`:'0 / 53 SPACES';
+    const upcoming=p?CELLS.findIndex((c,i)=>i>p.position&&(c.kind==='milestone'||c.kind==='end')):-1;
+    const teaser=$('milestoneTeaser');
+    if(teaser){
+      teaser.textContent=!p?'Your adventure begins at the first space.':p.retired?'You reached retirement!':upcoming<0?'Next chapter: Retirement':`COMING UP · ${CELLS[upcoming].label} · ${upcoming-p.position} space${upcoming-p.position===1?'':'s'} away`;
+    }
     $('turnChip').textContent=!playable?'SETUP':isBot(p)?'CPU TURN':game.phase==='ready'?'READY':game.phase==='decision'?'CHOOSE':game.phase==='handoff'?'NEXT PLAYER':game.phase==='moving'?'MOVING':game.phase==='final'?'COMPLETE':'SETUP';
     $('turnLabel').textContent=p?`${htmlSafe(p.name).toUpperCase()} · CHAPTER ${p.turns+1}`:'YOUR NEXT CHAPTER';
     $('decisionArea').innerHTML='';

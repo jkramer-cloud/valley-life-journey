@@ -46,9 +46,15 @@ The rivals are *scripted decision-making opponents*, not generative AI, and do n
 - Ages: aimed broadly at grades 5–12.
 - Finances, salaries, credit/debt, and lifecycle decisions are deliberately fictional and should not be treated as actual financial guidance.
 - No sign-in, advertising, telemetry, or external services.
-- V1.1 is fully playable on desktop and supports narrower screens.
+- V1.2 is fully playable on desktop and supports narrower screens.
 - The software does not collect or transmit student information. Only names entered into the local game are saved within that browser profile.
 
 ## License / attribution
 
 Original educational game developed for Naches Learning Hub. You may add a project license in GitHub when ready.
+
+
+### V1.2 changes
+- Aligns all six spinner colors, numbers, and pointer positions. Fixes results drifting from the pointer after repeated spins.
+- Adds an upcoming milestone preview under the board and highlights the current player's token.
+- Keeps existing computer rivals, save key, and game logic.
