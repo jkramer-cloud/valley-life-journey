@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#143c4a" />
+  <meta name="description" content="Valley Life Journey: an original financial-literacy board adventure about education, work, saving, community, and life's choices." />
+  <title>Valley Life Journey · Naches Learning Hub</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="game.js" defer></script>
+</head>
+<body>
+ <div class="app-shell">
+  <header class="masthead">
+    <div class="mast-brand">
+      <div class="brand-sun" aria-hidden="true"><span>✳</span></div>
+      <div>
+        <div class="eyebrow">NACHES LEARNING HUB · LIFE SKILLS ADVENTURE</div>
+        <h1>Valley <em>Life Journey</em></h1>
+        <p class="subhead">Build a future. Make choices. See where your story leads.</p>
+      </div>
+    </div>
+    <div class="mast-actions">
+      <button id="rulesBtn" class="text-btn" type="button">How to play</button>
+      <button id="exportBtn" class="text-btn" type="button" disabled>Save backup</button>
+      <button id="newGameBtn" class="text-btn" type="button">New journey</button>
+    </div>
+  </header>
+
+  <main class="main-layout">
+    <section class="board-pane" aria-label="Valley journey board">
+      <div class="board-heading">
+        <div>
+          <div class="overline">THE JOURNEY MAP</div>
+          <h2>From first paycheck to retirement</h2>
+        </div>
+        <span class="board-badge" id="phaseBadge">Ready for adventure</span>
+      </div>
+      <div class="player-strip" id="playerStrip" aria-label="Players"></div>
+      <div class="board-frame">
+        <div class="map-topline"><span>⛰ <strong>VALLEY TRAIL</strong></span><span id="mapProgress">0 / 53 SPACES</span></div>
+        <div class="map-scroll" role="region" aria-label="Scrollable journey board" tabindex="0">
+          <svg viewBox="0 0 900 665" preserveAspectRatio="xMidYMid meet" id="boardSvg" role="img" aria-label="Winding board route with career, money, community, and life event spaces"></svg>
+        </div>
+        <div class="map-legend" aria-label="Board space types">
+          <span><i class="legend-dot" style="--dot:#1a8298"></i>Opportunity</span>
+          <span><i class="legend-dot" style="--dot:#e59c45"></i>Money</span>
+          <span><i class="legend-dot" style="--dot:#a56ca8"></i>Surprise</span>
+          <span><i class="legend-dot" style="--dot:#4e946c"></i>Community</span>
+          <span><i class="legend-dot" style="--dot:#efbc49"></i>Milestone</span>
+          <span><i class="legend-dot" style="--dot:#36aa85"></i>Payday</span>
+        </div>
+      </div>
+      <div class="under-map">
+        <div class="info-mini"><span class="mini-icon">✦</span><span><strong>Different paths, worthwhile lives.</strong> Money matters, but so do wellbeing, learning, and helping others.</span></div>
+        <div class="info-mini"><span class="mini-icon">▣</span><span><strong>Saved on this browser.</strong> Export a backup if moving computers.</span></div>
+      </div>
+    </section>
+
+    <aside class="control-pane" aria-label="Game controls">
+      <div class="control-card action-panel">
+        <div class="panel-topline"><span class="overline" id="turnLabel">YOUR NEXT CHAPTER</span><span class="small-chip" id="turnChip">SETUP</span></div>
+        <h2 id="actionTitle">Your story begins here</h2>
+        <p id="actionDescription" class="panel-description">Choose players and start a new adventure.</p>
+        <div id="wheelArea" class="wheel-area">
+          <div class="spinner-assembly">
+            <div class="wheel-pointer" aria-hidden="true"></div>
+            <div class="wheel" id="wheelDisc" aria-hidden="true">
+              <span class="wheel-label w1">1</span><span class="wheel-label w2">2</span><span class="wheel-label w3">3</span>
+              <span class="wheel-label w4">4</span><span class="wheel-label w5">5</span><span class="wheel-label w6">6</span>
+            </div>
+            <div class="wheel-hub" id="wheelHub">✦</div>
+          </div>
+          <button id="spinBtn" class="primary-btn spin-btn" type="button" disabled>Spin & move</button>
+          <div class="wheel-hint" id="wheelHint">Finish setup to spin the wheel.</div>
+        </div>
+        <div id="decisionArea" class="decision-area" aria-live="polite"></div>
+        <div id="handoffArea" class="handoff-area" hidden></div>
+      </div>
+      <div class="control-card dashboard-panel">
+        <div class="section-header"><h3>My life dashboard</h3><span id="careerBadge" class="small-chip">No career yet</span></div>
+        <div id="moneyDashboard" class="money-grid"></div>
+        <div id="statMeters" class="stat-meters"></div>
+        <div class="dash-foot" id="dashNote">Fictional numbers for learning, not real financial guidance.</div>
+      </div>
+      <div class="control-card history-panel">
+        <div class="section-header"><h3>Journey journal</h3><span class="small-chip">Latest events</span></div>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </aside>
+  </main>
+  <footer>AN ORIGINAL EDUCATIONAL GAME · GRADES 5–12 · ALL COSTS AND SALARIES ARE SIMULATED · NO SIGN-IN REQUIRED</footer>
+ </div>
+
+ <div class="modal-backdrop" id="modal" role="presentation">
+   <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalTitle" tabindex="-1" id="modalCard">
+     <div class="modal-decoration" aria-hidden="true">✦ <span>⛰</span> ✳</div>
+     <div class="overline" id="modalEyebrow">A WHOLE LIFE OF POSSIBILITIES</div>
+     <h2 id="modalTitle">Welcome to the valley</h2>
+     <p id="modalCopy" class="modal-copy">Take turns spinning and making choices about work, money, community, and your future.</p>
+     <div id="modalBody"></div>
+     <div class="modal-bottom" id="modalBottom"></div>
+   </div>
+ </div>
+ <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
